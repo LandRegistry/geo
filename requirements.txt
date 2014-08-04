@@ -6,4 +6,4 @@ raven==5.0.0
 GeoAlchemy2==0.2.4
 alembic==0.6.5
 Flask-RESTful==0.2.12
-GDAL
+#GDAL - removed as it can't easily be installed using pip. Needs doing at system level
