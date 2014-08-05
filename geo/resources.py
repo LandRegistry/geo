@@ -1,7 +1,37 @@
 from flask import Response
 from flask.ext.restful import Resource, fields, marshal_with, abort, reqparse
-from geo.models import Title
+from geo import models
 from geo import app, db
+from sqlalchemy.exc import DataError
+
+
+class TitleListResource(Resource):
+
+    def __init__(self):
+
+        self.parser = reqparse.RequestParser()
+        self.parser.add_argument('method', type=str, location='args')
+
+        super(TitleListResource, self).__init__()
+
+    def get(self):
+
+        args = self.parser.parse_args()
+        result = []
+
+        method = args.get('method', None)
+        location = args.get('location', None)
+
+        if method == 'near':
+            titles =  models.Title.query.all()
+        else:
+            titles =  models.Title.query.all()
+
+        for title in titles:
+            result.append(title.to_dict())
+
+        return result
+
 
 class TitleResource(Resource):
 
@@ -9,33 +39,37 @@ class TitleResource(Resource):
 
     def __init__(self):
         self.parser = reqparse.RequestParser()
-        for key, val in TitleResource.resource_fields.items():
-            self.parser.add_argument(key, type=str)
+        self.parser.add_argument('extent', type=str, location='json')
 
-    @marshal_with(resource_fields)
+        super(TitleResource, self).__init__()
+
     def get(self, title_number):
-        title = Title.query.filter_by(title_number=title_number).first()
+
+        title = models.Title.query.filter_by(title_number=title_number).first()
         if title:
-            return title
+            return title.to_dict()
         else:
             abort(404, message="Title number %s doesn't exist" % title_number)
 
+
     def put(self, title_number):
-        
-        args = self.parser.parse_args()
-        existing_title = Title.query.filter_by(title_number=args['title_number']).first()
-        extent = geojson.loads(args['extent'])
 
         status = 201
-        if existing_title:
-            app.logger.info('Title number %s already exists. Replace with %s' % (args['title_number'], args))
-            db.session.delete(existing_title)
-            db.session.commit()
-            status = 200
+        args = self.parser.parse_args()
 
-        app.logger.info('Create title with args %s' % args)
-        title = Title(title_number=args['title_number'], extent=extent)
-        db.session.add(title)
-        db.session.commit()
-        return Response(status=status)
+        #try and get existing title, create if not
+        title = models.Title.query.filter_by(title_number=title_number).first()
+        if not title:
+            status = 200
+            title = models.Title()
+            title.title_number = title_number
+
+        #set extent from geojson
+        title.set_extent_from_geojson(args['extent'])
+        try:
+            db.session.add(title)
+            db.session.commit()
+        except DataError:
+            status = 400
+        return None, status
 

@@ -8,3 +8,4 @@ def index():
     return "Geo OK"
 
 api.add_resource(resources.TitleResource, '/titles/<string:title_number>')
+api.add_resource(resources.TitleListResource, '/titles')
