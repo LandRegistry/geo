@@ -1,5 +1,5 @@
 #!/bin/bash
-export PYTHONPATH=/vagrant/apps/geo:${PYTHONPATH}
-export DJANGO_SETTINGS_MODULE=geo.settings
-
-django-admin.py runserver $PORT
+export SETTINGS='config.DevelopmentConfig'
+source ./environment.sh
+python manage.py db upgrade
+python run_dev.py
