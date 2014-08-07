@@ -3,7 +3,7 @@ import os
 class Config(object):
     DEBUG = False
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
-    SPATIAL_REFERENCE_SYSTEM_IDENTIFIER = 27700
+    SPATIAL_REFERENCE_SYSTEM_IDENTIFIER = os.environ.get('SPATIAL_REFERENCE_SYSTEM_IDENTIFIER')
 
 class DevelopmentConfig(Config):
     DEBUG = True
