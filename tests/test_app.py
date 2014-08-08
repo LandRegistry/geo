@@ -60,7 +60,6 @@ class AppTestCase(unittest.TestCase):
 
         assert response.status_code == 400
 
-
     def test_put_get_polygon(self):
         """
         Save and view a polygon

@@ -54,12 +54,15 @@ class TitleResource(Resource):
 
     def put(self, title_number):
 
+        app.logger.info("PUTing a title")
+
         status = 201
         args = self.parser.parse_args()
 
         #try and get existing title, create if not
         title = models.Title.query.filter_by(title_number=title_number).first()
         if not title:
+            app.logger.info("Title number does not exist, creating a new one")
             status = 200
             title = models.Title()
             title.title_number = title_number
