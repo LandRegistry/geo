@@ -1,6 +1,7 @@
 from geo import server, db
 import json
 import unittest
+from geo.resources import postcode_to_osgb34
 
 class AppTestCase(unittest.TestCase):
 
@@ -11,6 +12,40 @@ class AppTestCase(unittest.TestCase):
     def tearDown(self):
         db.session.remove()
         db.drop_all()
+
+    def test_postcode_to_eastings_northings(self):
+        
+        #valid geographic postcode
+        location = postcode_to_osgb34('sw98jx')
+        assert location == [531093, 175405]
+
+        #valid, non-geographic postcode
+        self.assertFalse(postcode_to_osgb34('bx55at'))
+        
+        #invalid
+        self.assertFalse(postcode_to_osgb34('XXXX'))
+        self.assertFalse(postcode_to_osgb34(''))
+
+
+    def test_postcode(self):
+
+        #missing postcode
+        response = self.app.get('/titles?method=near-postcode&location=')
+        assert response.status_code == 400
+        assert 'Postcode not supplied' in response.data
+
+        #invalid postcode
+        response = self.app.get('/titles?method=near-postcode&location=XXXXX')
+        assert response.status_code == 400
+        assert 'Invalid postcode' in response.data
+
+        #non-geographical postcode
+        response = self.app.get('/titles?method=near-postcode&location=bx55at')
+        assert response.status_code == 500
+        assert 'Unable to convert valid postcode to OSGB34' in response.data
+
+        #valid
+        response = self.app.get('/titles?method=near-postcode&location=sw98jx')
 
     def test_get_unknown_title(self):
         """

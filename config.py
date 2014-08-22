@@ -2,6 +2,7 @@ import os
 
 class Config(object):
     DEBUG = False
+    MAX_DISTANCE_SEARCH_METERS = 10000
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
     SPATIAL_REFERENCE_SYSTEM_IDENTIFIER = os.environ.get('SPATIAL_REFERENCE_SYSTEM_IDENTIFIER')
 

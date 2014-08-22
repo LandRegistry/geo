@@ -3,7 +3,20 @@ from flask.ext.restful import Resource, fields, marshal_with, abort, reqparse
 from geo import models
 from geo import app, db
 from sqlalchemy.exc import DataError
+from datatypes import postcode_validator
+from datatypes.exceptions import DataDoesNotMatchSchemaException
+import json
+import urllib
+from geoalchemy2.functions import ST_Distance, ST_Overlaps
+from shapely.geometry import Point
 
+def postcode_to_osgb34(postcode):
+    try:
+        response_text = urllib.urlopen('http://mapit.mysociety.org/postcode/%s' % postcode).read()
+        data = json.loads(response_text)
+        return [data['easting'], data['northing']]
+    except Exception, e:
+        return False
 
 class TitleListResource(Resource):
 
@@ -11,6 +24,7 @@ class TitleListResource(Resource):
 
         self.parser = reqparse.RequestParser()
         self.parser.add_argument('method', type=str, location='args')
+        self.parser.add_argument('location', type=str, location='args')
 
         super(TitleListResource, self).__init__()
 
@@ -22,10 +36,29 @@ class TitleListResource(Resource):
         method = args.get('method', None)
         location = args.get('location', None)
 
-        if method == 'near':
-            titles =  models.Title.query.all()
+        if method == 'near-postcode':
+
+            #check for missing postcode
+            if not location:
+                return 'Postcode not supplied', 400
+
+            #check for invalid postcode
+            try:
+                postcode_validator.validate(location)
+            except DataDoesNotMatchSchemaException:
+                return 'Invalid postcode', 400
+
+            #convert to latlng
+            location = postcode_to_osgb34(location)
+            if not location:
+                return 'Unable to convert valid postcode to OSGB34', 500
+
+            point = Point(location[0], location[1])
+            max_distance_polygon = point.buffer(app.config['MAX_DISTANCE_SEARCH_METERS'])
+            titles = models.Title.query.filter(ST_Overlaps(models.Title.extent, max_distance_polygon.wkt)).order_by(ST_Distance(models.Title.extent, point.wkt))
+
         else:
-            titles =  models.Title.query.all()
+            titles = models.Title.query.all()
 
         for title in titles:
             result.append(title.to_dict())
