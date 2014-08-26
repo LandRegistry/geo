@@ -5,6 +5,8 @@ class Config(object):
     MAX_DISTANCE_SEARCH_METERS = 10000
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL')
     SPATIAL_REFERENCE_SYSTEM_IDENTIFIER = os.environ.get('SPATIAL_REFERENCE_SYSTEM_IDENTIFIER')
+    ADDRESS_API_TOKEN = os.environ.get('ADDRESS_API_TOKEN')
+    ADDRESS_API_DOMAIN = os.environ.get('ADDRESS_API_DOMAIN')
 
 class DevelopmentConfig(Config):
     DEBUG = True

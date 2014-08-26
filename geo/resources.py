@@ -6,16 +6,23 @@ from sqlalchemy.exc import DataError
 from datatypes import postcode_validator
 from datatypes.exceptions import DataDoesNotMatchSchemaException
 import json
-import urllib
-from geoalchemy2.functions import ST_Distance, ST_Overlaps
+import urllib2
+from geoalchemy2.functions import ST_Distance, ST_Contains
 from shapely.geometry import Point
 
 def postcode_to_osgb34(postcode):
+
+    postcode = postcode.lower().replace(' ', '')
+    headers = {'Authorization': 'Bearer %s' % app.config['ADDRESS_API_TOKEN']}
+    request = urllib2.Request('https://%s/locate/authority?postcode=%s' % (app.config['ADDRESS_API_DOMAIN'], postcode), None, headers)
+
     try:
-        response_text = urllib.urlopen('http://mapit.mysociety.org/postcode/%s' % postcode).read()
-        data = json.loads(response_text)
+        response = urllib2.urlopen(request)
+        data = json.loads(response.read())
         return [data['easting'], data['northing']]
-    except Exception, e:
+    except urllib2.URLError, e:
+        return False
+    except KeyError, e:
         return False
 
 class TitleListResource(Resource):
@@ -38,25 +45,27 @@ class TitleListResource(Resource):
 
         if method == 'near-postcode':
 
-            #check for missing postcode
+            # check for missing postcode
             if not location:
                 return 'Postcode not supplied', 400
 
-            #check for invalid postcode
+            # check for invalid postcode
             try:
                 postcode_validator.validate(location)
             except DataDoesNotMatchSchemaException:
                 return 'Invalid postcode', 400
 
-            #convert to latlng
-            location = postcode_to_osgb34(location)
-            if not location:
+            # convert to osgb
+            easting_northing = postcode_to_osgb34(location)
+            if not easting_northing:
                 return 'Unable to convert valid postcode to OSGB34', 500
 
-            point = Point(location[0], location[1])
+            point = Point(easting_northing[0], easting_northing[1])
             max_distance_polygon = point.buffer(app.config['MAX_DISTANCE_SEARCH_METERS'])
-            titles = models.Title.query.filter(ST_Overlaps(models.Title.extent, max_distance_polygon.wkt)).order_by(ST_Distance(models.Title.extent, point.wkt))
+            srid = app.config['SPATIAL_REFERENCE_SYSTEM_IDENTIFIER']
 
+            titles = models.Title.query.filter(ST_Contains('SRID=%s;%s' % (
+                srid, max_distance_polygon.wkt), models.Title.extent)).order_by(ST_Distance(models.Title.extent, 'SRID=%s;%s' % (srid, point.wkt)))
         else:
             titles = models.Title.query.all()
 
@@ -84,7 +93,6 @@ class TitleResource(Resource):
         else:
             abort(404, message="Title number %s doesn't exist" % title_number)
 
-
     def put(self, title_number):
 
         app.logger.info("PUTing a title")
@@ -92,7 +100,7 @@ class TitleResource(Resource):
         status = 201
         args = self.parser.parse_args()
 
-        #try and get existing title, create if not
+        # try and get existing title, create if not
         title = models.Title.query.filter_by(title_number=title_number).first()
         if not title:
             app.logger.info("Title number does not exist, creating a new one")
@@ -100,7 +108,7 @@ class TitleResource(Resource):
             title = models.Title()
             title.title_number = title_number
 
-        #set extent from geojson
+        # set extent from geojson
         title.set_extent_from_geojson(args['extent'])
         try:
             db.session.add(title)
@@ -108,4 +116,3 @@ class TitleResource(Resource):
         except DataError:
             status = 400
         return None, status
-
