@@ -2,8 +2,8 @@ from geo import server, db
 import json
 import unittest
 
-class AppTestCase(unittest.TestCase):
 
+class AppTestCase(unittest.TestCase):
     def setUp(self):
         db.create_all()
         self.app = server.app
@@ -14,24 +14,22 @@ class AppTestCase(unittest.TestCase):
         db.drop_all()
 
     def load_sample_data(self):
-
         extent = '{   "type": "Feature",   "crs": {     "type": "name",     "properties": {       "name": "urn:ogc:def:crs:EPSG:27700"     }   },   "geometry": {      "type": "Polygon",     "coordinates": [       [ [530857.01, 181500.00], [530857.00, 181500.00], [530857.00, 181500.00], [530857.00, 181500.00], [530857.01, 181500.00] ]       ]   },   "properties" : {      } }'
-        response = self.test_client.put('/titles/DN100' ,
-                                data='{"title_number":"DN100", "extent": %s}' % json.dumps(extent),
-                                content_type='application/json')
+        response = self.test_client.put('/titles/DN100',
+                                        data='{"title_number":"DN100", "extent": %s}' % json.dumps(extent),
+                                        content_type='application/json')
 
-        assert response.status_code == 200
+        self.assertEqual(response.status_code, 200)
 
     def test_postcode(self):
-
         self.load_sample_data()
 
-        #missing postcode
+        # missing postcode
         response = self.test_client.get('/titles?method=near-postcode&location=')
         assert response.status_code == 400
         assert 'Postcode not supplied' in response.data
 
-        #invalid postcode
+        # invalid postcode
         response = self.test_client.get('/titles?method=near-postcode&location=XXXXX')
         assert response.status_code == 400
         assert 'Invalid postcode' in response.data
@@ -48,7 +46,7 @@ class AppTestCase(unittest.TestCase):
 
             data = json.loads(response.data)
             assert len(data) == 1
-        
+
     def test_get_unknown_title(self):
         """
         Check for a valid 404
@@ -58,18 +56,17 @@ class AppTestCase(unittest.TestCase):
 
 
     def test_get_list(self):
-
         response = self.test_client.get('/titles')
         assert response.status_code == 200
         assert len(json.loads(response.data)) == 0
 
-        #add some examples
+        # add some examples
         self.load_sample_data()
 
-        #check exists
+        # check exists
         response = self.test_client.get('/titles')
         assert len(json.loads(response.data)) == 1
-        assert 'DN100' in response
+        assert 'DN100' in response.data
 
         #check near search
         response = self.test_client.get('/titles')
@@ -80,9 +77,9 @@ class AppTestCase(unittest.TestCase):
         Make sure we cannot save a point
         """
         extent = '{ "type": "Feature", "crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:EPSG:27700" } }, "geometry": { "type": "Point", "coordinates": [530857.01, 181500.00] }, "properties" : { } }'
-        response = self.test_client.put('/titles/DN104' ,
-                                data='{"title_number":"DN104", "extent": %s}' % json.dumps(extent),
-                                content_type='application/json')
+        response = self.test_client.put('/titles/DN104',
+                                        data='{"title_number":"DN104", "extent": %s}' % json.dumps(extent),
+                                        content_type='application/json')
 
         assert response.status_code == 400
 
@@ -91,9 +88,9 @@ class AppTestCase(unittest.TestCase):
         Save and view a polygon
         """
         extent = '{   "type": "Feature",   "crs": {     "type": "name",     "properties": {       "name": "urn:ogc:def:crs:EPSG:27700"     }   },   "geometry": {      "type": "Polygon",     "coordinates": [       [ [530857.01, 181500.00], [530857.00, 181500.00], [530857.00, 181500.00], [530857.00, 181500.00], [530857.01, 181500.00] ]       ]   },   "properties" : {      } }'
-        response = self.test_client.put('/titles/DN100' ,
-                                data='{"title_number":"DN100", "extent": %s}' % json.dumps(extent),
-                                content_type='application/json')
+        response = self.test_client.put('/titles/DN100',
+                                        data='{"title_number":"DN100", "extent": %s}' % json.dumps(extent),
+                                        content_type='application/json')
 
         assert response.status_code == 200
 
@@ -107,9 +104,9 @@ class AppTestCase(unittest.TestCase):
         """
 
         extent = '{   "type": "Feature",   "crs": {     "type": "name",     "properties": {       "name": "urn:ogc:def:crs:EPSG:27700"     }   },   "geometry": {      "type": "MultiPolygon",     "coordinates": [[       [ [530857.01, 181500.00], [530857.00, 181500.00], [530857.00, 181500.00], [530857.00, 181500.00], [530857.01, 181500.00] ]       ] ]  },   "properties" : {      } }'
-        response = self.test_client.put('/titles/DN101' ,
-                                data='{"title_number":"DN100", "extent": %s}' % json.dumps(extent),
-                                content_type='application/json')
+        response = self.test_client.put('/titles/DN101',
+                                        data='{"title_number":"DN100", "extent": %s}' % json.dumps(extent),
+                                        content_type='application/json')
 
         assert response.status_code == 200
 
